@@ -5,7 +5,7 @@ import maplibregl, { type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useVendorStore } from "@/features/vendors/store/vendor-store";
 import { useMapStore } from "../store/map-store";
-import type { Point } from "geojson";
+import { useMapInstanceStore } from "../store/map-instance-store";
 
 const mapStyle: StyleSpecification = {
     version: 8,
@@ -44,6 +44,9 @@ export default function FullscreenMap() {
 
     const { setCenter, setZoom, setBounds } = useMapStore();
 
+    const setMap =
+        useMapInstanceStore((state) => state.setMap);
+
     const vendors = useVendorStore((state) => state.vendors);
 
     useEffect(() => {
@@ -59,6 +62,8 @@ export default function FullscreenMap() {
         const map = mapRef.current;
 
         if (!map) return;
+
+        setMap(map);
 
         map.on("load", () => {
             console.log("MAP LOADED");
@@ -179,25 +184,7 @@ export default function FullscreenMap() {
                 },
             });
 
-            map.addLayer({
-                id: "unclustered-point",
 
-                type: "circle",
-
-                source: "vendors",
-
-                filter: ["!", ["has", "point_count"]],
-
-                paint: {
-                    "circle-color": "#ff5500",
-
-                    "circle-radius": 8,
-
-                    "circle-stroke-width": 2,
-
-                    "circle-stroke-color": "#ffffff",
-                },
-            });
 
             map.on("click", "clusters", async (e) => {
                 const features = map.queryRenderedFeatures(e.point, {
@@ -216,24 +203,21 @@ export default function FullscreenMap() {
                     "vendors"
                 ) as maplibregl.GeoJSONSource;
 
-                const zoom =
-                    await source.getClusterExpansionZoom(clusterId);
-
                 const coordinates = (
                     feature.geometry as unknown as GeoJSON.Point
                 ).coordinates;
 
                 map.flyTo({
-    center: coordinates as [number, number],
+                    center: coordinates as [number, number],
 
-    zoom: Math.min(map.getZoom() + 1.5, 16),
+                    zoom: Math.min(map.getZoom() + 1.5, 16),
 
-    speed: 0.8,
+                    speed: 0.8,
 
-    curve: 1.4,
+                    curve: 1.4,
 
-    essential: true,
-});
+                    essential: true,
+                });
             });
 
             map.on("mouseenter", "clusters", () => {
@@ -252,8 +236,8 @@ export default function FullscreenMap() {
         }
 
         return () => {
-            map.off("load", addVendorLayer);
-        };
+    map.off("load", addVendorLayer);
+};
     }, [vendors]);
 
     return (

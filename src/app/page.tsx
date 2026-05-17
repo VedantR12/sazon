@@ -4,6 +4,8 @@ import FullscreenMap from "@/features/map/components/fullscreen-map";
 import { useMapStore } from "@/features/map/store/map-store";
 import { useVendorsInViewport } from "@/features/vendors/hooks/use-vendors-in-viewport";
 import { useVendorStore } from "@/features/vendors/store/vendor-store";
+import VendorMapCards from "@/features/vendors/components/vendor-map-cards";
+import VendorModal from "@/features/vendors/components/vendor-modal";
 
 export default function Home() {
   useVendorsInViewport();
@@ -22,6 +24,10 @@ export default function Home() {
       }}
     >
       <FullscreenMap />
+      
+      <VendorMapCards />
+
+      <VendorModal />
 
       <div
         style={{
