@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import maplibregl, { type StyleSpecification } from "maplibre-gl";
+
+import maplibregl, {
+    type StyleSpecification,
+} from "maplibre-gl";
+
 import "maplibre-gl/dist/maplibre-gl.css";
+
 import { useVendorStore } from "@/features/vendors/store/vendor-store";
+
 import { useMapStore } from "../store/map-store";
+
 import { useMapInstanceStore } from "../store/map-instance-store";
+
+import { useLocationPickerStore } from "@/features/vendors/store/location-picker-store";
+import { useAuthStore } from "@/features/auth/store/auth-store";
+import { supabase } from "@/lib/supabase";
 
 const mapStyle: StyleSpecification = {
     version: 8,
@@ -13,9 +24,11 @@ const mapStyle: StyleSpecification = {
     sources: {
         osm: {
             type: "raster",
+
             tiles: [
                 "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
             ],
+
             tileSize: 256,
         },
     },
@@ -23,41 +36,84 @@ const mapStyle: StyleSpecification = {
     layers: [
         {
             id: "background",
+
             type: "background",
+
             paint: {
-                "background-color": "#111111",
+                "background-color":
+                    "#111111",
             },
         },
 
         {
             id: "osm",
+
             type: "raster",
+
             source: "osm",
         },
     ],
 };
 
 export default function FullscreenMap() {
-    const containerRef = useRef<HTMLDivElement | null>(null);
+    const containerRef =
+        useRef<HTMLDivElement | null>(
+            null
+        );
 
-    const mapRef = useRef<maplibregl.Map | null>(null);
+    const mapRef =
+        useRef<maplibregl.Map | null>(
+            null
+        );
 
-    const { setCenter, setZoom, setBounds } = useMapStore();
+    const tempMarkerRef =
+        useRef<maplibregl.Marker | null>(
+            null
+        );
+
+    const {
+        setCenter,
+        setZoom,
+        setBounds,
+    } = useMapStore();
 
     const setMap =
-        useMapInstanceStore((state) => state.setMap);
+        useMapInstanceStore(
+            (state) => state.setMap
+        );
 
-    const vendors = useVendorStore((state) => state.vendors);
+    const vendors = useVendorStore(
+        (state) => state.vendors
+    );
+
+    const user = useAuthStore(
+        (state) => state.user
+    );
+
+    const {
+        isPicking,
+        pendingVendor,
+        stopPicking,
+    } = useLocationPickerStore();
 
     useEffect(() => {
-        if (!containerRef.current) return;
+        if (!containerRef.current)
+            return;
 
-        mapRef.current = new maplibregl.Map({
-            container: containerRef.current,
-            style: mapStyle,
-            center: [73.7898, 19.9975],
-            zoom: 12,
-        });
+        mapRef.current =
+            new maplibregl.Map({
+                container:
+                    containerRef.current,
+
+                style: mapStyle,
+
+                center: [
+                    73.7898,
+                    19.9975,
+                ],
+
+                zoom: 12,
+            });
 
         const map = mapRef.current;
 
@@ -66,29 +122,168 @@ export default function FullscreenMap() {
         setMap(map);
 
         map.on("load", () => {
-            console.log("MAP LOADED");
+            console.log(
+                "MAP LOADED"
+            );
         });
 
         map.on("moveend", () => {
-            const center = map.getCenter();
-            const bounds = map.getBounds();
+            const center =
+                map.getCenter();
 
-            setCenter([center.lng, center.lat]);
+            const bounds =
+                map.getBounds();
+
+            setCenter([
+                center.lng,
+                center.lat,
+            ]);
 
             setZoom(map.getZoom());
 
             setBounds({
-                north: bounds.getNorth(),
-                south: bounds.getSouth(),
+                north:
+                    bounds.getNorth(),
+
+                south:
+                    bounds.getSouth(),
+
                 east: bounds.getEast(),
+
                 west: bounds.getWest(),
             });
         });
 
         return () => {
-            mapRef.current?.remove();
+            map.remove();
         };
-    }, [setCenter, setZoom, setBounds]);
+    }, [
+        setCenter,
+        setZoom,
+        setBounds,
+        setMap,
+    ]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+
+        if (!map) return;
+
+        const handleMapClick = (
+            e: maplibregl.MapMouseEvent
+        ) => {
+            if (
+                !isPicking ||
+                !pendingVendor
+            )
+                return;
+
+            const latitude =
+                e.lngLat.lat;
+
+            const longitude =
+                e.lngLat.lng;
+
+            tempMarkerRef.current?.remove();
+
+            tempMarkerRef.current =
+                new maplibregl.Marker({
+                    color: "#111",
+                })
+                    .setLngLat([
+                        longitude,
+                        latitude,
+                    ])
+                    .addTo(map);
+
+            setTimeout(() => {
+                const confirmed =
+                    window.confirm(
+                        "Confirm this vendor location?"
+                    );
+
+                if (!confirmed) {
+                    tempMarkerRef.current?.remove();
+
+                    tempMarkerRef.current =
+                        null;
+
+                    return;
+                }
+
+                stopPicking();
+
+                const submitVendor =
+                    async () => {
+                        const { error } =
+                            await supabase
+                                .from(
+                                    "vendor_submissions"
+                                )
+                                .insert({
+                                    submitted_by:
+                                        user?.id,
+
+                                    status:
+                                        "pending",
+
+                                    name:
+                                        pendingVendor.name,
+
+                                    best_item:
+                                        pendingVendor.bestItem,
+
+                                    address:
+                                        pendingVendor.address,
+
+                                    phone:
+                                        pendingVendor.phone,
+
+                                    image_url:
+                                        pendingVendor.image_url,
+
+                                    latitude,
+
+                                    longitude,
+                                });
+
+                        if (error) {
+                            console.error(error);
+
+                            alert(
+                                "Failed to submit request"
+                            );
+
+                            return;
+                        }
+
+                        alert(
+                            "Request sent for review"
+                        );
+                    };
+
+                submitVendor();
+            }, 100);
+        };
+
+        map.on(
+            "click",
+            handleMapClick
+        );
+
+        return () => {
+            map.off(
+                "click",
+                handleMapClick
+            );
+        };
+    }, [
+        isPicking,
+
+        pendingVendor,
+
+        stopPicking,
+    ]);
 
     useEffect(() => {
         const map = mapRef.current;
@@ -99,42 +294,54 @@ export default function FullscreenMap() {
             const geojson = {
                 type: "FeatureCollection",
 
-                features: vendors.map((vendor) => ({
-                    type: "Feature",
+                features: vendors.map(
+                    (vendor) => ({
+                        type: "Feature",
 
-                    geometry: {
-                        type: "Point",
-                        coordinates: [vendor.longitude, vendor.latitude],
-                    },
+                        geometry: {
+                            type: "Point",
 
-                    properties: {
-                        id: vendor.id,
-                        name: vendor.name,
-                    },
-                })),
+                            coordinates: [
+                                vendor.longitude,
+                                vendor.latitude,
+                            ],
+                        },
+
+                        properties: {
+                            id: vendor.id,
+
+                            name: vendor.name,
+                        },
+                    })
+                ),
             };
 
-            if (map.getSource("vendors")) {
+            if (
+                map.getSource("vendors")
+            ) {
                 (
-                    map.getSource("vendors") as maplibregl.GeoJSONSource
+                    map.getSource(
+                        "vendors"
+                    ) as maplibregl.GeoJSONSource
                 ).setData(
-                    geojson as GeoJSON.FeatureCollection
+                    geojson as any
                 );
 
                 return;
             }
 
-            map.addSource("vendors", {
-                type: "geojson",
+            map.addSource(
+                "vendors",
+                {
+                    type: "geojson",
 
-                data: geojson as GeoJSON.FeatureCollection,
+                    data: geojson as any,
 
-                cluster: true,
+                    cluster: true,
 
-                clusterMaxZoom: 14,
-
-                clusterRadius: 50,
-            });
+                    clusterRadius: 60,
+                }
+            );
 
             map.addLayer({
                 id: "clusters",
@@ -143,24 +350,16 @@ export default function FullscreenMap() {
 
                 source: "vendors",
 
-                filter: ["has", "point_count"],
+                filter: [
+                    "has",
+                    "point_count",
+                ],
 
                 paint: {
-                    "circle-color": "#ff5500",
+                    "circle-color":
+                        "#111",
 
-                    "circle-radius": [
-                        "step",
-                        ["get", "point_count"],
-                        20,
-                        10,
-                        26,
-                        30,
-                        34,
-                    ],
-
-                    "circle-stroke-width": 2,
-
-                    "circle-stroke-color": "#ffffff",
+                    "circle-radius": 22,
                 },
             });
 
@@ -171,81 +370,71 @@ export default function FullscreenMap() {
 
                 source: "vendors",
 
-                filter: ["has", "point_count"],
+                filter: [
+                    "has",
+                    "point_count",
+                ],
 
                 layout: {
-                    "text-field": ["get", "point_count_abbreviated"],
+                    "text-field":
+                        "{point_count_abbreviated}",
 
-                    "text-size": 14,
+                    "text-size": 12,
                 },
 
                 paint: {
-                    "text-color": "#ffffff",
+                    "text-color":
+                        "#fff",
                 },
-            });
-
-
-
-            map.on("click", "clusters", async (e) => {
-                const features = map.queryRenderedFeatures(e.point, {
-                    layers: ["clusters"],
-                });
-
-                if (!features.length) return;
-
-                const feature = features[0];
-
-                const clusterId = feature.properties?.cluster_id;
-
-                if (typeof clusterId !== "number") return;
-
-                const source = map.getSource(
-                    "vendors"
-                ) as maplibregl.GeoJSONSource;
-
-                const coordinates = (
-                    feature.geometry as unknown as GeoJSON.Point
-                ).coordinates;
-
-                map.flyTo({
-                    center: coordinates as [number, number],
-
-                    zoom: Math.min(map.getZoom() + 1.5, 16),
-
-                    speed: 0.8,
-
-                    curve: 1.4,
-
-                    essential: true,
-                });
-            });
-
-            map.on("mouseenter", "clusters", () => {
-                map.getCanvas().style.cursor = "pointer";
-            });
-
-            map.on("mouseleave", "clusters", () => {
-                map.getCanvas().style.cursor = "";
             });
         };
 
-        if (map.isStyleLoaded()) {
+        if (map.loaded()) {
             addVendorLayer();
         } else {
-            map.on("load", addVendorLayer);
+            map.on(
+                "load",
+                addVendorLayer
+            );
         }
 
         return () => {
-    map.off("load", addVendorLayer);
-};
+            if (
+                map.getLayer(
+                    "clusters"
+                )
+            ) {
+                map.removeLayer(
+                    "clusters"
+                );
+            }
+
+            if (
+                map.getLayer(
+                    "cluster-count"
+                )
+            ) {
+                map.removeLayer(
+                    "cluster-count"
+                );
+            }
+
+            if (
+                map.getSource(
+                    "vendors"
+                )
+            ) {
+                map.removeSource(
+                    "vendors"
+                );
+            }
+        };
     }, [vendors]);
 
     return (
         <div
             ref={containerRef}
             style={{
-                position: "absolute",
-                inset: 0,
                 width: "100%",
                 height: "100%",
             }}
