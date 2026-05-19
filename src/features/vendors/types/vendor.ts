@@ -6,6 +6,7 @@ export type Vendor = {
     category: string | null;
     best_item?: string;
     rating?: number;
+    review_count?: number;
     price_range?: string;
     phone?: string;
     address?: string;

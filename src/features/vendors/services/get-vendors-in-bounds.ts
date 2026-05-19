@@ -1,5 +1,6 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { Vendor } from "../types/vendor";
+
 
 type Bounds = {
   north: number;
@@ -9,8 +10,13 @@ type Bounds = {
 };
 
 export async function getVendorsInBounds(
+    
   bounds: Bounds
 ): Promise<Vendor[]> {
+
+    
+const supabase = createClient();
+
   const { data, error } = await supabase
     .from("vendors")
     .select("*")

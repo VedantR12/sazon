@@ -24,7 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="h-screen w-screen overflow-hidden">{children}</body>
+      <body
+  suppressHydrationWarning
+  className="h-screen w-screen"
+>{children}</body>
     </html>
   );
 }

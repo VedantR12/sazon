@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import FullscreenMap from "@/features/map/components/fullscreen-map";
 import { useMapStore } from "@/features/map/store/map-store";
@@ -16,7 +16,12 @@ import AddVendorModal from "@/features/vendors/components/add-vendor-modal";
 
 import { useAuthModalStore } from "@/features/auth/store/auth-modal-store";
 
+
+
 export default function Home() {
+  
+const supabase = createClient();
+
   useVendorsInViewport();
 
   const { zoom, center, bounds } = useMapStore();

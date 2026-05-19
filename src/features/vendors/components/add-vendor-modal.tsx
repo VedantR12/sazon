@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useAddVendorStore } from "../store/add-vendor-store";
 import { useLocationPickerStore } from "../store/location-picker-store";
+
+const supabase = createClient();
 
 export default function AddVendorModal() {
     const { isOpen, close } =

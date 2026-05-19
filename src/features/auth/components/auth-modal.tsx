@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 import { useAuthModalStore } from "../store/auth-modal-store";
 
 export default function AuthModal() {
+    
+const supabase = createClient();
     const {
         isOpen,
         mode,
@@ -24,23 +25,62 @@ export default function AuthModal() {
     const [loading, setLoading] =
         useState(false);
 
+    const [error, setError] =
+        useState("");
+
     if (!isOpen) return null;
 
     const handleAuth = async () => {
         setLoading(true);
 
+        setError("");
+
+        let result;
+
         if (mode === "signup") {
-            await supabase.auth.signUp({
-                email,
-                password,
-            });
-        } else {
-            await supabase.auth.signInWithPassword(
-                {
+            result =
+                await supabase.auth.signUp({
                     email,
                     password,
+                });
+
+            if (result.error) {
+                if (
+                    result.error.message.includes(
+                        "already registered"
+                    )
+                ) {
+                    setError(
+                        "Account already exists. Please login instead."
+                    );
+                } else {
+                    setError(
+                        result.error.message
+                    );
                 }
-            );
+
+                setLoading(false);
+
+                return;
+            }
+        } else {
+            result =
+                await supabase.auth.signInWithPassword(
+                    {
+                        email,
+                        password,
+                    }
+                );
+
+            if (result.error) {
+                setError(
+                    "Invalid email or password."
+                );
+
+                setLoading(false);
+
+                return;
+            }
         }
 
         setLoading(false);
@@ -165,6 +205,22 @@ export default function AuthModal() {
                     }}
                 />
 
+                {error && (
+                    <div
+                        style={{
+                            marginTop: 14,
+
+                            color: "#d11a2a",
+
+                            fontWeight: 600,
+
+                            fontSize: 14,
+                        }}
+                    >
+                        {error}
+                    </div>
+                )}
+
                 <button
                     onClick={handleAuth}
                     disabled={loading}
@@ -193,8 +249,8 @@ export default function AuthModal() {
                     {loading
                         ? "Please wait..."
                         : mode === "signup"
-                        ? "Create Account"
-                        : "Login"}
+                            ? "Create Account"
+                            : "Login"}
                 </button>
 
                 <div
@@ -213,8 +269,10 @@ export default function AuthModal() {
                         : "New here?"}{" "}
                     <span
                         onClick={() => {
+                            setError("");
+
                             mode ===
-                            "signup"
+                                "signup"
                                 ? openLogin()
                                 : openSignup();
                         }}

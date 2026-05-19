@@ -16,7 +16,7 @@ import { useMapInstanceStore } from "../store/map-instance-store";
 
 import { useLocationPickerStore } from "@/features/vendors/store/location-picker-store";
 import { useAuthStore } from "@/features/auth/store/auth-store";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 const mapStyle: StyleSpecification = {
     version: 8,
@@ -56,6 +56,8 @@ const mapStyle: StyleSpecification = {
 };
 
 export default function FullscreenMap() {
+
+    const supabase = createClient();
     const containerRef =
         useRef<HTMLDivElement | null>(
             null
@@ -215,6 +217,75 @@ export default function FullscreenMap() {
 
                 const submitVendor =
                     async () => {
+
+                        // GET USER ROLE
+
+                        const {
+                            data: profile,
+                            error: profileError,
+                        } = await supabase
+                            .from("profiles")
+                            .select("role")
+                            .eq("id", user?.id)
+                            .single();
+
+                        if (profileError) {
+                            console.error(profileError);
+
+                            alert(
+                                "Failed to verify user role"
+                            );
+
+                            return;
+                        }
+
+                        // ADMIN FLOW
+
+                        if (profile?.role === "admin") {
+
+                            const { error } =
+                                await supabase
+                                    .from("vendors")
+                                    .insert({
+                                        name:
+                                            pendingVendor.name,
+
+                                        best_item:
+                                            pendingVendor.bestItem,
+
+                                        address:
+                                            pendingVendor.address,
+
+                                        phone:
+                                            pendingVendor.phone,
+
+                                        image_url:
+                                            pendingVendor.image_url,
+
+                                        latitude,
+
+                                        longitude,
+                                    });
+
+                            if (error) {
+                                console.error(error);
+
+                                alert(
+                                    "Failed to add vendor"
+                                );
+
+                                return;
+                            }
+
+                            alert(
+                                "Vendor added successfully"
+                            );
+
+                            return;
+                        }
+
+                        // NORMAL USER FLOW
+
                         const { error } =
                             await supabase
                                 .from(
