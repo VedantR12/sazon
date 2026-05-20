@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthModalStore } from "../store/auth-modal-store";
 
 export default function AuthModal() {
-    
-const supabase = createClient();
+
+    const supabase = createClient();
     const {
         isOpen,
         mode,
@@ -20,6 +20,9 @@ const supabase = createClient();
         useState("");
 
     const [password, setPassword] =
+        useState("");
+
+    const [username, setUsername] =
         useState("");
 
     const [loading, setLoading] =
@@ -38,10 +41,29 @@ const supabase = createClient();
         let result;
 
         if (mode === "signup") {
+
+            if (!username.trim()) {
+
+                setError(
+                    "Username is required."
+                );
+
+                setLoading(false);
+
+                return;
+            }
+
             result =
                 await supabase.auth.signUp({
                     email,
                     password,
+
+                    options: {
+    data: {
+        display_name:
+            username.trim(),
+    },
+},
                 });
 
             if (result.error) {
@@ -63,6 +85,12 @@ const supabase = createClient();
 
                 return;
             }
+
+            if (result.data.user) {
+
+                
+            }
+
         } else {
             result =
                 await supabase.auth.signInWithPassword(
@@ -151,6 +179,36 @@ const supabase = createClient();
                 >
                     Continue your food journey.
                 </div>
+
+                {mode === "signup" && (
+
+                    <input
+                        placeholder="Username"
+                        value={username}
+                        onChange={(e) =>
+                            setUsername(
+                                e.target.value
+                            )
+                        }
+                        style={{
+                            width: "100%",
+
+                            marginTop: 24,
+
+                            padding: 16,
+
+                            borderRadius: 16,
+
+                            border:
+                                "1px solid rgba(0,0,0,0.08)",
+
+                            outline: "none",
+
+                            fontSize: 15,
+                        }}
+                    />
+
+                )}
 
                 <input
                     placeholder="Email"

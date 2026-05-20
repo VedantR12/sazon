@@ -164,64 +164,21 @@ export default function VendorModal() {
                                 reviewText,
 
                             image_url,
+
+                            display_name:
+                                user.user_metadata
+                                    ?.display_name ||
+                                "Anonymous",
                         });
 
                 if (reviewError) {
                     throw reviewError;
                 }
 
-                // FETCH UPDATED REVIEWS
-
-                const {
-                    data: updatedReviews,
-                } =
-                    await supabase
-                        .from("reviews")
-                        .select("rating")
-                        .eq(
-                            "vendor_id",
-                            selectedVendor.id
-                        );
-
-                // CALCULATE AVERAGE
-
-                const total =
-                    updatedReviews?.reduce(
-                        (
-                            sum,
-                            review
-                        ) =>
-                            sum +
-                            review.rating,
-                        0
-                    ) || 0;
-
-                const avg =
-                    updatedReviews?.length
-                        ? total /
-                        updatedReviews.length
-                        : 0;
-
-                // UPDATE VENDOR
-
-                // UPDATE VENDOR
-
-                await supabase
-                    .from("vendors")
-                    .update({
-                        rating:
-                            Number(
-                                avg.toFixed(1)
-                            ),
-
-                        review_count:
-                            updatedReviews?.length ||
-                            0,
-                    })
-                    .eq(
-                        "id",
-                        selectedVendor.id
-                    );
+                await new Promise(
+                    (resolve) =>
+                        setTimeout(resolve, 300)
+                );
 
                 // FETCH UPDATED VENDOR
 
@@ -324,6 +281,7 @@ export default function VendorModal() {
                 style={{
                     width: "100%",
                     maxWidth: 500,
+                    margin: 16,
                     height: "80vh",
                     boxShadow:
                         "0 25px 80px rgba(0,0,0,0.35)",
@@ -333,6 +291,7 @@ export default function VendorModal() {
                     overflow: "hidden",
                     overflowY: "auto",
                 }}
+                className="modal-scrollbar"
             >
 
 
@@ -379,6 +338,9 @@ export default function VendorModal() {
                                     width: "100%",
                                     height: "100%",
                                     objectFit: "cover",
+
+                                    borderTopLeftRadius: 32,
+                                    borderTopRightRadius: 32,
                                 }}
                             />
 
@@ -438,9 +400,19 @@ export default function VendorModal() {
                             }}
                         >
 
-                            {"★".repeat(
-                                Math.round(
-                                    selectedVendor.rating || 0
+                            {Array.from({ length: 5 }).map(
+                                (_, index) => (
+
+                                    <span key={index}>
+
+                                        {index <
+                                            Math.round(
+                                                selectedVendor.rating || 0
+                                            )
+                                            ? "★"
+                                            : "☆"}
+
+                                    </span>
                                 )
                             )}
 
@@ -678,110 +650,156 @@ Would you recommend it?`}
                             }}
                         >
 
-                            {reviews.map((review) => (
+                            {reviews.length === 0 ? (
 
                                 <div
-                                    key={review.id}
                                     style={{
-                                        border:
-                                            "1px solid rgba(0,0,0,0.08)",
-                                        borderRadius: 20,
-                                        padding: 18,
+                                        opacity: 0.6,
+                                        textAlign: "center",
+                                        padding: "40px 0",
                                     }}
                                 >
 
-                                    {/* HEADER */}
+                                    No reviews yet.
+                                    Be the first one 🚀
+
+                                </div>
+
+                            ) : (
+
+                                reviews.map((review) => (
 
                                     <div
+                                        key={review.id}
                                         style={{
-                                            display: "flex",
-                                            justifyContent:
-                                                "space-between",
-                                            alignItems:
-                                                "center",
-                                            marginBottom: 14,
+                                            border:
+                                                "1px solid rgba(0,0,0,0.08)",
+                                            borderRadius: 20,
+                                            padding: 18,
                                         }}
                                     >
 
-                                        {/* REVIEW STARS */}
+                                        {/* HEADER */}
 
                                         <div
                                             style={{
-                                                color: "#facc15",
-                                                fontSize: 18,
+                                                display: "flex",
+                                                justifyContent:
+                                                    "space-between",
+                                                alignItems:
+                                                    "flex-start",
+                                                marginBottom: 14,
+                                                gap: 12,
                                             }}
                                         >
 
-                                            {Array.from({ length: 5 }).map(
-                                                (_, index) => (
+                                            {/* LEFT */}
 
-                                                    <span key={index}>
+                                            <div>
 
-                                                        {index < review.rating
-                                                            ? "★"
-                                                            : "☆"}
+                                                {/* USERNAME */}
 
-                                                    </span>
-                                                )
-                                            )}
+                                                <div
+                                                    style={{
+                                                        fontWeight: 700,
+                                                        marginBottom: 6,
+                                                    }}
+                                                >
+
+                                                    {review.display_name ||
+                                                        "Anonymous"}
+
+                                                </div>
+
+                                                {/* STARS */}
+
+                                                <div
+                                                    style={{
+                                                        color: "#facc15",
+                                                        fontSize: 18,
+                                                    }}
+                                                >
+
+                                                    {Array.from({
+                                                        length: 5,
+                                                    }).map(
+                                                        (_, index) => (
+
+                                                            <span
+                                                                key={index}
+                                                            >
+
+                                                                {index <
+                                                                    review.rating
+                                                                    ? "★"
+                                                                    : "☆"}
+
+                                                            </span>
+                                                        )
+                                                    )}
+
+                                                </div>
+
+                                            </div>
+
+                                            {/* DATE */}
+
+                                            <div
+                                                style={{
+                                                    fontSize: 13,
+                                                    opacity: 0.6,
+                                                    whiteSpace:
+                                                        "nowrap",
+                                                }}
+                                            >
+
+                                                {new Date(
+                                                    review.created_at
+                                                ).toLocaleDateString()}
+
+                                            </div>
 
                                         </div>
 
-                                        {/* DATE */}
+                                        {/* REVIEW TEXT */}
 
                                         <div
                                             style={{
-                                                fontSize: 13,
-                                                opacity: 0.6,
-                                            }}
-                                        >
-
-                                            {new Date(
-                                                review.created_at
-                                            ).toLocaleDateString()}
-
-                                        </div>
-
-                                    </div>
-
-                                    {/* REVIEW TEXT */}
-
-                                    {review.review_text && (
-
-                                        <div
-                                            style={{
-                                                lineHeight: 1.7,
+                                                lineHeight: 1.6,
+                                                marginBottom:
+                                                    review.image_url
+                                                        ? 14
+                                                        : 0,
                                             }}
                                         >
 
                                             {review.review_text}
 
                                         </div>
-                                    )}
 
-                                    {/* REVIEW IMAGE */}
+                                        {/* REVIEW IMAGE */}
 
-                                    {review.image_url && (
+                                        {review.image_url && (
 
-                                        <img
-                                            src={
-                                                review.image_url
-                                            }
-                                            alt="Review"
-                                            style={{
-                                                width: "100%",
-                                                marginTop: 16,
-                                                borderRadius: 18,
-                                                maxHeight: 300,
-                                                objectFit:
-                                                    "cover",
-                                            }}
-                                        />
-                                    )}
+                                            <img
+                                                src={review.image_url}
+                                                alt="Review"
+                                                style={{
+                                                    width: "100%",
+                                                    maxHeight: 320,
+                                                    objectFit: "cover",
+                                                    borderRadius: 16,
+                                                    marginTop: 10,
+                                                }}
+                                            />
 
-                                </div>
+                                        )}
 
-                            ))}
+                                    </div>
+
+                                ))
+
+                            )}
 
                         </div>
 
